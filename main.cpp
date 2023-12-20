@@ -11,7 +11,6 @@ using namespace std;
 
 ifstream fin("input.txt");
 ofstream fout("output.txt");
-
 map<int, string> stateToPath[N][N];
 
 vector<int> powersOf2(
@@ -72,36 +71,36 @@ string pathReconstruction(
     return "";
 }
 
-int main()
+void readInputValues(
+    int &tasknr,
+    int &nrStates,
+    int &alphaLen,
+    int &nrFinalStates,
+    int &nrTransitions,
+    int &initialState)
 {
-    int taksNr;
-    fin >> taksNr;
-
-    int nrStates;
+    fin >> tasknr;
     fin >> nrStates;
-
-    int alphaLen;
     fin >> alphaLen;
-
-    int nrFinalStates;
     fin >> nrFinalStates;
-
-    int nrTransitions;
     fin >> nrTransitions;
-
-    int initialState;
     fin >> initialState;
     initialState--;
+}
 
-    int finalStates[nrFinalStates];
+void readInputVectors(
+    int nrStates,
+    int alphaLen,
+    int nrFinalStates,
+    int finalStates[],
+    vector<pair<int, char>> transitions[],
+    vector<pair<int, char>> transitionsTransposed[])
+{
     for (int i = 0; i < nrFinalStates; i++)
     {
         fin >> finalStates[i];
         finalStates[i]--;
     }
-
-    vector<pair<int, char>> transitions[nrStates];
-    vector<pair<int, char>> transitionsTransposed[nrStates];
 
     for (int i = 0; i < nrStates; i++)
     {
@@ -113,168 +112,176 @@ int main()
             transitionsTransposed[to - 1].push_back({i, 'a' + j});
         }
     }
+}
 
-    if (taksNr == 1)
+void solveTask1(
+    int nrStates,
+    int nrFinalStates,
+    int nrTransitions,
+    int finalStates[],
+    vector<pair<int, char>> transitions[],
+    vector<pair<int, char>> transitionsTransposed[],
+    int initialState)
+{
+    vector<vector<int>> dpReachNodeInSteps(nrStates, vector<int>(nrStates + nrTransitions + 1, 0));
+    dpReachNodeInSteps[initialState][0] = 1;
+
+    for (int step = 0; step <= nrStates + nrTransitions; step++)
     {
-        vector<vector<int>> dpReachNodeInSteps(nrStates, vector<int>(nrStates + nrTransitions + 1, 0));
-        dpReachNodeInSteps[initialState][0] = 1;
-
-        for (int step = 0; step <= nrStates + nrTransitions; step++)
+        for (int state = 0; state < nrStates; state++)
         {
-            for (int state = 0; state < nrStates; state++)
+            if (dpReachNodeInSteps[state][step] == 1)
             {
-                if (dpReachNodeInSteps[state][step] == 1)
+                for (auto transition : transitions[state])
                 {
-                    for (auto transition : transitions[state])
-                    {
-                        dpReachNodeInSteps[transition.first][step + 1] = 1;
-                    }
-
-                    if (step >= nrTransitions)
-                    {
-                        for (int i = 0; i < nrFinalStates; i++)
-                        {
-                            if (state == finalStates[i])
-                            {
-                                int currentNode = state;
-                                std::string path = "";
-                                for (int j = step; j >= 1; j--)
-                                {
-                                    for (auto transition : transitionsTransposed[currentNode])
-                                    {
-                                        if (dpReachNodeInSteps[transition.first][j - 1] == 1)
-                                        {
-                                            path += transition.second;
-                                            currentNode = transition.first;
-                                            break;
-                                        }
-                                    }
-                                }
-                                reverse(path.begin(), path.end());
-                                fout << path.size() << endl;
-                                fout << path << endl;
-                                return 0;
-                            }
-                        }
-                    }
+                    dpReachNodeInSteps[transition.first][step + 1] = 1;
                 }
-            }
-        }
 
-        fout << -1 << endl;
-    }
-    else if (taksNr == 2)
-    {
-        vector<vector<vector<int>>> hopsByPowerOF2(nrStates, vector<vector<int>>(log2(nrTransitions) + 1));
-
-        for (int i = 0; i < nrStates; i++)
-        {
-            for (auto transition : transitions[i])
-            {
-                hopsByPowerOF2[i][0].push_back(transition.first);
-            }
-        }
-
-        for (int power = 1; power <= log2(nrTransitions); power++)
-        {
-            for (int state = 0; state < nrStates; state++)
-            {
-                map<int, int> visited;
-                for (auto transition : hopsByPowerOF2[state][power - 1])
+                if (step >= nrTransitions)
                 {
-                    for (auto transition2 : hopsByPowerOF2[transition][power - 1])
-                    {
-                        if (visited.count(transition2) > 0)
-                        {
-                            continue;
-                        }
-
-                        visited[transition2] = 1;
-                        hopsByPowerOF2[state][power].push_back(transition2);
-                    }
-                }
-            }
-        }
-
-        vector<int> nrTransitionsDecomposed = powersOf2(nrTransitions);
-
-        set<int> currentStates;
-        currentStates.insert(initialState);
-
-        for (int i = 0; i < (int)(nrTransitionsDecomposed.size()); i++)
-        {
-            set<int> nextStates;
-            for (auto state : currentStates)
-            {
-                for (auto nextState : hopsByPowerOF2[state][nrTransitionsDecomposed[i]])
-                {
-                    nextStates.insert(nextState);
-                }
-            }
-            currentStates = nextStates;
-        }
-
-        vector<vector<int>> dpReachNodeInSteps(nrStates, vector<int>(nrStates + 1, 0));
-
-        for (auto state : currentStates)
-        {
-            dpReachNodeInSteps[state][0] = 1;
-        }
-
-        for (int step = 0; step <= nrStates; step++)
-        {
-            for (int state = 0; state < nrStates; state++)
-            {
-                if (dpReachNodeInSteps[state][step] == 1)
-                {
-                    for (auto transition : transitions[state])
-                    {
-                        dpReachNodeInSteps[transition.first][step + 1] = 1;
-                    }
-
                     for (int i = 0; i < nrFinalStates; i++)
                     {
                         if (state == finalStates[i])
                         {
                             int currentNode = state;
-                            std::string pathAfterNrTransitions = "";
+                            std::string path = "";
                             for (int j = step; j >= 1; j--)
                             {
                                 for (auto transition : transitionsTransposed[currentNode])
                                 {
                                     if (dpReachNodeInSteps[transition.first][j - 1] == 1)
                                     {
-                                        pathAfterNrTransitions += transition.second;
+                                        path += transition.second;
                                         currentNode = transition.first;
                                         break;
                                     }
                                 }
                             }
-                            reverse(pathAfterNrTransitions.begin(), pathAfterNrTransitions.end());
+                            reverse(path.begin(), path.end());
+                            fout << path.size() << endl;
+                            fout << path << endl;
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-                            vector<string> pathBeforeNrTransitions;
+    fout << -1 << endl;
+}
 
-                            for (int j = nrTransitionsDecomposed.size() - 1; j >= 0; j--)
+void SolveTask2(
+    int nrStates,
+    int nrFinalStates,
+    int nrTransitions,
+    int finalStates[],
+    vector<pair<int, char>> transitions[],
+    vector<pair<int, char>> transitionsTransposed[],
+    int initialState)
+{
+    vector<vector<vector<int>>> hopsByPowerOF2(nrStates, vector<vector<int>>(log2(nrTransitions) + 1));
+
+    for (int i = 0; i < nrStates; i++)
+    {
+        for (auto transition : transitions[i])
+        {
+            hopsByPowerOF2[i][0].push_back(transition.first);
+        }
+    }
+
+    for (int power = 1; power <= log2(nrTransitions); power++)
+    {
+        for (int state = 0; state < nrStates; state++)
+        {
+            map<int, int> visited;
+            for (auto transition : hopsByPowerOF2[state][power - 1])
+            {
+                for (auto transition2 : hopsByPowerOF2[transition][power - 1])
+                {
+                    if (visited.count(transition2) > 0)
+                    {
+                        continue;
+                    }
+
+                    visited[transition2] = 1;
+                    hopsByPowerOF2[state][power].push_back(transition2);
+                }
+            }
+        }
+    }
+
+    vector<int> nrTransitionsDecomposed = powersOf2(nrTransitions);
+
+    set<int> currentStates;
+    currentStates.insert(initialState);
+
+    for (int i = 0; i < (int)(nrTransitionsDecomposed.size()); i++)
+    {
+        set<int> nextStates;
+        for (auto state : currentStates)
+        {
+            for (auto nextState : hopsByPowerOF2[state][nrTransitionsDecomposed[i]])
+            {
+                nextStates.insert(nextState);
+            }
+        }
+        currentStates = nextStates;
+    }
+
+    vector<vector<int>> dpReachNodeInSteps(nrStates, vector<int>(nrStates + 1, 0));
+
+    for (auto state : currentStates)
+    {
+        dpReachNodeInSteps[state][0] = 1;
+    }
+
+    for (int step = 0; step <= nrStates; step++)
+    {
+        for (int state = 0; state < nrStates; state++)
+        {
+            if (dpReachNodeInSteps[state][step] == 1)
+            {
+                for (auto transition : transitions[state])
+                {
+                    dpReachNodeInSteps[transition.first][step + 1] = 1;
+                }
+
+                for (int i = 0; i < nrFinalStates; i++)
+                {
+                    if (state == finalStates[i])
+                    {
+                        int currentNode = state;
+                        std::string pathAfterNrTransitions = "";
+                        for (int j = step; j >= 1; j--)
+                        {
+                            for (auto transition : transitionsTransposed[currentNode])
                             {
-                                int powerOf2 = nrTransitionsDecomposed[j];
-                                bool broken = false;
-                                for (int node = 0; node < nrStates && !broken; node++)
+                                if (dpReachNodeInSteps[transition.first][j - 1] == 1)
                                 {
-                                    for (auto transition : hopsByPowerOF2[node][powerOf2])
+                                    pathAfterNrTransitions += transition.second;
+                                    currentNode = transition.first;
+                                    break;
+                                }
+                            }
+                        }
+                        reverse(pathAfterNrTransitions.begin(), pathAfterNrTransitions.end());
+
+                        vector<string> pathBeforeNrTransitions;
+
+                        for (int j = nrTransitionsDecomposed.size() - 1; j >= 0; j--)
+                        {
+                            int powerOf2 = nrTransitionsDecomposed[j];
+                            bool broken = false;
+                            for (int node = 0; node < nrStates && !broken; node++)
+                            {
+                                for (auto transition : hopsByPowerOF2[node][powerOf2])
+                                {
+                                    if (transition == currentNode)
                                     {
-                                        if (transition == currentNode)
+                                        if (j == 0)
                                         {
-                                            if (j == 0)
-                                            {
-                                                if (node == initialState)
-                                                {
-                                                    pathBeforeNrTransitions.push_back(pathReconstruction(node, currentNode, powerOf2, transitions, hopsByPowerOF2));
-                                                    currentNode = node;
-                                                    broken = true;
-                                                    break;
-                                                }
-                                            }
-                                            else
+                                            if (node == initialState)
                                             {
                                                 pathBeforeNrTransitions.push_back(pathReconstruction(node, currentNode, powerOf2, transitions, hopsByPowerOF2));
                                                 currentNode = node;
@@ -282,27 +289,87 @@ int main()
                                                 break;
                                             }
                                         }
+                                        else
+                                        {
+                                            pathBeforeNrTransitions.push_back(pathReconstruction(node, currentNode, powerOf2, transitions, hopsByPowerOF2));
+                                            currentNode = node;
+                                            broken = true;
+                                            break;
+                                        }
                                     }
                                 }
                             }
-
-                            string totalPath = "";
-                            for (int i = pathBeforeNrTransitions.size() - 1; i >= 0; i--)
-                            {
-                                totalPath += pathBeforeNrTransitions[i];
-                            }
-                            totalPath += pathAfterNrTransitions;
-
-                            fout << totalPath.size() << endl;
-                            fout << totalPath << endl;
-                            return 0;
                         }
+
+                        string totalPath = "";
+                        for (int i = pathBeforeNrTransitions.size() - 1; i >= 0; i--)
+                        {
+                            totalPath += pathBeforeNrTransitions[i];
+                        }
+                        totalPath += pathAfterNrTransitions;
+
+                        fout << totalPath.size() << endl;
+                        fout << totalPath << endl;
+                        return;
                     }
                 }
             }
         }
+    }
 
-        fout << -1 << endl;
+    fout << -1 << endl;
+}
+
+int main()
+{
+    int taksNr;
+    int nrStates;
+    int alphaLen;
+    int nrFinalStates;
+    int nrTransitions;
+    int initialState;
+
+    readInputValues(
+        taksNr,
+        nrStates,
+        alphaLen,
+        nrFinalStates,
+        nrTransitions,
+        initialState);
+
+    int finalStates[nrFinalStates] = {};
+    vector<pair<int, char>> transitions[nrStates] = {};
+    vector<pair<int, char>> transitionsTransposed[nrStates] = {};
+
+    readInputVectors(
+        nrStates,
+        alphaLen,
+        nrFinalStates,
+        finalStates,
+        transitions,
+        transitionsTransposed);
+
+    if (taksNr == 1)
+    {
+        solveTask1(
+            nrStates,
+            nrFinalStates,
+            nrTransitions,
+            finalStates,
+            transitions,
+            transitionsTransposed,
+            initialState);
+    }
+    else if (taksNr == 2)
+    {
+        SolveTask2(
+            nrStates,
+            nrFinalStates,
+            nrTransitions,
+            finalStates,
+            transitions,
+            transitionsTransposed,
+            initialState);
     }
 
     return 0;
