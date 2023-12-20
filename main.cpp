@@ -180,17 +180,11 @@ void solveTask1(
     fout << -1 << endl;
 }
 
-void SolveTask2(
+void InitialiseHopesByPowerOf2(
     int nrStates,
-    int nrFinalStates,
-    int nrTransitions,
-    int finalStates[],
     vector<pair<int, char>> transitions[],
-    vector<pair<int, char>> transitionsTransposed[],
-    int initialState)
+    vector<vector<vector<int>>> &hopsByPowerOF2)
 {
-    vector<vector<vector<int>>> hopsByPowerOF2(nrStates, vector<vector<int>>(log2(nrTransitions) + 1));
-
     for (int i = 0; i < nrStates; i++)
     {
         for (auto transition : transitions[i])
@@ -198,7 +192,13 @@ void SolveTask2(
             hopsByPowerOF2[i][0].push_back(transition.first);
         }
     }
+}
 
+void PopulateHopesByPowerOf2(
+    int nrStates,
+    int nrTransitions,
+    vector<vector<vector<int>>> &hopsByPowerOF2)
+{
     for (int power = 1; power <= log2(nrTransitions); power++)
     {
         for (int state = 0; state < nrStates; state++)
@@ -219,12 +219,15 @@ void SolveTask2(
             }
         }
     }
+}
 
-    vector<int> nrTransitionsDecomposed = powersOf2(nrTransitions);
-
-    set<int> currentStates;
+void CreateCurrentStates(
+    int initialState,
+    vector<int> nrTransitionsDecomposed,
+    vector<vector<vector<int>>> &hopsByPowerOF2,
+    set<int> &currentStates)
+{
     currentStates.insert(initialState);
-
     for (int i = 0; i < (int)(nrTransitionsDecomposed.size()); i++)
     {
         set<int> nextStates;
@@ -237,8 +240,111 @@ void SolveTask2(
         }
         currentStates = nextStates;
     }
+}
 
+string CreatePathAfterNrTransitions(
+    int step,
+    int &currentNode,
+    vector<vector<int>> dpReachNodeInSteps,
+    vector<pair<int, char>> transitionsTransposed[])
+{
+    string pathAfterNrTransitions = "";
+    for (int j = step; j >= 1; j--)
+    {
+        for (auto transition : transitionsTransposed[currentNode])
+        {
+            if (dpReachNodeInSteps[transition.first][j - 1] == 1)
+            {
+                pathAfterNrTransitions += transition.second;
+                currentNode = transition.first;
+                break;
+            }
+        }
+    }
+    reverse(pathAfterNrTransitions.begin(), pathAfterNrTransitions.end());
+
+    return pathAfterNrTransitions;
+}
+
+vector<string> CreatePathBeforeNrTransitions(
+    int nrStates,
+    int initialState,
+    int &currentNode,
+    vector<int> nrTransitionsDecomposed,
+    vector<vector<vector<int>>> hopsByPowerOF2,
+    vector<pair<int, char>> transitions[])
+{
+    vector<string> pathBeforeNrTransitions;
+    for (int j = nrTransitionsDecomposed.size() - 1; j >= 0; j--)
+    {
+        int powerOf2 = nrTransitionsDecomposed[j];
+        bool broken = false;
+        for (int node = 0; node < nrStates && !broken; node++)
+        {
+            for (auto transition : hopsByPowerOF2[node][powerOf2])
+            {
+                if (transition == currentNode)
+                {
+                    if (j == 0)
+                    {
+                        if (node == initialState)
+                        {
+                            pathBeforeNrTransitions.push_back(pathReconstruction(node, currentNode, powerOf2, transitions, hopsByPowerOF2));
+                            currentNode = node;
+                            broken = true;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        pathBeforeNrTransitions.push_back(pathReconstruction(node, currentNode, powerOf2, transitions, hopsByPowerOF2));
+                        currentNode = node;
+                        broken = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return pathBeforeNrTransitions;
+}
+
+string CreateTotalPath(
+    string pathAfterNrTransitions,
+    vector<string> pathBeforeNrTransitions)
+{
+    string totalPath = "";
+    for (int i = pathBeforeNrTransitions.size() - 1; i >= 0; i--)
+    {
+        totalPath += pathBeforeNrTransitions[i];
+    }
+    totalPath += pathAfterNrTransitions;
+
+    return totalPath;
+}
+
+void SolveTask2(
+    int nrStates,
+    int nrFinalStates,
+    int nrTransitions,
+    int finalStates[],
+    vector<pair<int, char>> transitions[],
+    vector<pair<int, char>> transitionsTransposed[],
+    int initialState)
+{
+    vector<vector<vector<int>>> hopsByPowerOF2(nrStates, vector<vector<int>>(log2(nrTransitions) + 1));
+    vector<int> nrTransitionsDecomposed = powersOf2(nrTransitions);
     vector<vector<int>> dpReachNodeInSteps(nrStates, vector<int>(nrStates + 1, 0));
+    set<int> currentStates;
+
+    InitialiseHopesByPowerOf2(nrStates, transitions, hopsByPowerOF2);
+    PopulateHopesByPowerOf2(nrStates, nrTransitions, hopsByPowerOF2);
+    CreateCurrentStates(
+        initialState,
+        nrTransitionsDecomposed,
+        hopsByPowerOF2,
+        currentStates);
 
     for (auto state : currentStates)
     {
@@ -261,61 +367,25 @@ void SolveTask2(
                     if (state == finalStates[i])
                     {
                         int currentNode = state;
-                        std::string pathAfterNrTransitions = "";
-                        for (int j = step; j >= 1; j--)
-                        {
-                            for (auto transition : transitionsTransposed[currentNode])
-                            {
-                                if (dpReachNodeInSteps[transition.first][j - 1] == 1)
-                                {
-                                    pathAfterNrTransitions += transition.second;
-                                    currentNode = transition.first;
-                                    break;
-                                }
-                            }
-                        }
-                        reverse(pathAfterNrTransitions.begin(), pathAfterNrTransitions.end());
+                        std::string pathAfterNrTransitions =
+                            CreatePathAfterNrTransitions(
+                                step,
+                                currentNode,
+                                dpReachNodeInSteps,
+                                transitionsTransposed);
 
-                        vector<string> pathBeforeNrTransitions;
+                        vector<string> pathBeforeNrTransitions =
+                            CreatePathBeforeNrTransitions(
+                                nrStates,
+                                initialState,
+                                currentNode,
+                                nrTransitionsDecomposed,
+                                hopsByPowerOF2,
+                                transitions);
 
-                        for (int j = nrTransitionsDecomposed.size() - 1; j >= 0; j--)
-                        {
-                            int powerOf2 = nrTransitionsDecomposed[j];
-                            bool broken = false;
-                            for (int node = 0; node < nrStates && !broken; node++)
-                            {
-                                for (auto transition : hopsByPowerOF2[node][powerOf2])
-                                {
-                                    if (transition == currentNode)
-                                    {
-                                        if (j == 0)
-                                        {
-                                            if (node == initialState)
-                                            {
-                                                pathBeforeNrTransitions.push_back(pathReconstruction(node, currentNode, powerOf2, transitions, hopsByPowerOF2));
-                                                currentNode = node;
-                                                broken = true;
-                                                break;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            pathBeforeNrTransitions.push_back(pathReconstruction(node, currentNode, powerOf2, transitions, hopsByPowerOF2));
-                                            currentNode = node;
-                                            broken = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        string totalPath = "";
-                        for (int i = pathBeforeNrTransitions.size() - 1; i >= 0; i--)
-                        {
-                            totalPath += pathBeforeNrTransitions[i];
-                        }
-                        totalPath += pathAfterNrTransitions;
+                        string totalPath = CreateTotalPath(
+                            pathAfterNrTransitions,
+                            pathBeforeNrTransitions);
 
                         fout << totalPath.size() << endl;
                         fout << totalPath << endl;
