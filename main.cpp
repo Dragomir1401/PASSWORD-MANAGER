@@ -114,6 +114,31 @@ void readInputVectors(
     }
 }
 
+void PrintAnswerTask1(
+    int state,
+    int step,
+    vector<vector<int>> dpReachNodeInSteps,
+    vector<pair<int, char>> transitionsTransposed[])
+{
+    int currentNode = state;
+    std::string path = "";
+    for (int j = step; j >= 1; j--)
+    {
+        for (auto transition : transitionsTransposed[currentNode])
+        {
+            if (dpReachNodeInSteps[transition.first][j - 1] == 1)
+            {
+                path += transition.second;
+                currentNode = transition.first;
+                break;
+            }
+        }
+    }
+    reverse(path.begin(), path.end());
+    fout << path.size() << endl;
+    fout << path << endl;
+}
+
 void solveTask1(
     int nrStates,
     int nrFinalStates,
@@ -143,23 +168,7 @@ void solveTask1(
                     {
                         if (state == finalStates[i])
                         {
-                            int currentNode = state;
-                            std::string path = "";
-                            for (int j = step; j >= 1; j--)
-                            {
-                                for (auto transition : transitionsTransposed[currentNode])
-                                {
-                                    if (dpReachNodeInSteps[transition.first][j - 1] == 1)
-                                    {
-                                        path += transition.second;
-                                        currentNode = transition.first;
-                                        break;
-                                    }
-                                }
-                            }
-                            reverse(path.begin(), path.end());
-                            fout << path.size() << endl;
-                            fout << path << endl;
+                            PrintAnswerTask1(state, step, dpReachNodeInSteps, transitionsTransposed);
                             return;
                         }
                     }
@@ -349,8 +358,9 @@ int main()
         transitions,
         transitionsTransposed);
 
-    if (taksNr == 1)
+    switch (taksNr)
     {
+    case 1:
         solveTask1(
             nrStates,
             nrFinalStates,
@@ -359,9 +369,8 @@ int main()
             transitions,
             transitionsTransposed,
             initialState);
-    }
-    else if (taksNr == 2)
-    {
+        break;
+    case 2:
         SolveTask2(
             nrStates,
             nrFinalStates,
@@ -370,6 +379,9 @@ int main()
             transitions,
             transitionsTransposed,
             initialState);
+        break;
+    default:
+        break;
     }
 
     return 0;
