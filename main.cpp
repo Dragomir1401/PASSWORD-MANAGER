@@ -272,39 +272,42 @@ vector<string> CreatePathBeforeNrTransitions(
     int &currentNode,
     vector<int> nrTransitionsDecomposed,
     vector<vector<vector<int>>> hopsByPowerOF2,
-    vector<pair<int, char>> transitions[])
+    vector<pair<int, char>> transitions[],
+    vector<vector<vector<int>>> parents)
 {
     vector<string> pathBeforeNrTransitions;
+    set<int> currentStates;
+    currentStates.insert(currentNode);
+
     for (int j = nrTransitionsDecomposed.size() - 1; j >= 0; j--)
     {
+        set<int> nextStates;
         int powerOf2 = nrTransitionsDecomposed[j];
-        bool broken = false;
-        for (int node = 0; node < nrStates && !broken; node++)
+
+        for (auto state : currentStates)
         {
-            for (auto transition : hopsByPowerOF2[node][powerOf2])
+            for (int node = 0; node < nrStates; node++)
             {
-                if (transition == currentNode)
+                for (auto transition : hopsByPowerOF2[node][powerOf2])
                 {
-                    if (j == 0)
+                    if (transition == state)
                     {
-                        if (node == initialState)
-                        {
-                            pathBeforeNrTransitions.push_back(pathReconstruction(node, currentNode, powerOf2, transitions, hopsByPowerOF2));
-                            currentNode = node;
-                            broken = true;
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        pathBeforeNrTransitions.push_back(pathReconstruction(node, currentNode, powerOf2, transitions, hopsByPowerOF2));
-                        currentNode = node;
-                        broken = true;
-                        break;
+                        nextStates.insert(node);
+                        parents[node][j].push_back(state);
                     }
                 }
             }
         }
+
+        currentStates = nextStates;
+    }
+
+    currentNode = initialState;
+
+    for (int i = 0; i < (int)(nrTransitionsDecomposed.size()); i++)
+    {
+        pathBeforeNrTransitions.push_back(pathReconstruction(currentNode, parents[currentNode][i][0], nrTransitionsDecomposed[i], transitions, hopsByPowerOF2));
+        currentNode = parents[currentNode][i][0];
     }
 
     return pathBeforeNrTransitions;
@@ -315,7 +318,7 @@ string CreateTotalPath(
     vector<string> pathBeforeNrTransitions)
 {
     string totalPath = "";
-    for (int i = pathBeforeNrTransitions.size() - 1; i >= 0; i--)
+    for (int i = 0; i < (int)(pathBeforeNrTransitions.size()); i++)
     {
         totalPath += pathBeforeNrTransitions[i];
     }
@@ -336,6 +339,7 @@ void SolveTask2(
     vector<vector<vector<int>>> hopsByPowerOF2(nrStates, vector<vector<int>>(log2(nrTransitions) + 1));
     vector<int> nrTransitionsDecomposed = powersOf2(nrTransitions);
     vector<vector<int>> dpReachNodeInSteps(nrStates, vector<int>(nrStates + 1, 0));
+    vector<vector<vector<int>>> parents(nrStates, vector<vector<int>>(log2(nrTransitions) + 1));
     set<int> currentStates;
 
     InitialiseHopesByPowerOf2(nrStates, transitions, hopsByPowerOF2);
@@ -381,7 +385,8 @@ void SolveTask2(
                                 currentNode,
                                 nrTransitionsDecomposed,
                                 hopsByPowerOF2,
-                                transitions);
+                                transitions,
+                                parents);
 
                         string totalPath = CreateTotalPath(
                             pathAfterNrTransitions,
